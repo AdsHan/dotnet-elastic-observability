@@ -1,0 +1,59 @@
+version: '3.4'
+
+services:
+
+    elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.14.2
+        container_name: elasticsearch
+        restart: always
+        environment:
+            - node.name=elasticsearch
+            - cluster.name=es-cluster-7
+            - discovery.type=single-node
+            - "ES_JAVA_OPTS=-Xms1g -Xmx1g"          
+        ulimits:
+              memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - elasticsearch_data:/usr/share/elasticsearch/data
+        ports:
+            - 9200:9200
+            - 9300:9300
+        networks:
+            - observability-network
+
+    kibana:
+        image: docker.elastic.co/kibana/kibana:7.14.2
+        container_name: kibana
+        restart: always
+        environment:            
+            - elasticsearch_url=http://elasticsearch:9200
+        ports:
+            - 5601:5601
+        networks:
+            - observability-network
+        depends_on:
+            - elasticsearch
+
+    apm-server:
+        image: docker.elastic.co/apm/apm-server:7.14.2
+        container_name: apm-server
+        environment:
+            - output.elasticsearch.hosts=['http://elasticsearch:9200']            
+            - setup.kibana.host=kibana:5601
+        ports:
+            - 8200:8200            
+        networks:
+            - observability-network
+        depends_on:
+          - elasticsearch
+          - kibana
+
+networks:
+    observability-network:
+        driver: bridge
+
+volumes:
+    elasticsearch_data:    
+        driver: local
